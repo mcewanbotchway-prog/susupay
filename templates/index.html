@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SusuPay - Micro Savings Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
+    <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg flex flex-col justify-between">
+        <!-- Header -->
+        <header class="bg-emerald-700 text-white p-6 rounded-b-2xl shadow-md">
+            <h1 class="text-2xl font-bold">SusuPay Ghana</h1>
+            <p class="text-emerald-100 text-sm">Digital Savings & Rotational Pot</p>
+            
+            <div class="mt-6 bg-emerald-800 p-4 rounded-xl text-center">
+                <span class="text-xs uppercase tracking-wider text-emerald-200">Total Savings</span>
+                <div class="text-3xl font-extrabold mt-1">GH₵ <span id="balance">0.00</span></div>
+            </div>
+        </header>
+
+        <!-- Body Content -->
+        <main class="p-6 space-y-6 flex-grow">
+            <!-- Quick Deposit Action -->
+            <div class="bg-gray-50 border border-gray-200 p-4 rounded-xl">
+                <h2 class="font-semibold text-gray-700 mb-3">Make Daily Deposit</h2>
+                <div class="flex space-x-2">
+                    <input type="number" id="depositAmount" placeholder="Amount (GH₵)" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-emerald-600">
+                    <button onclick="makeDeposit()" class="bg-emerald-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 transition">Save</button>
+                </div>
+            </div>
+
+            <!-- Transaction History -->
+            <div>
+                <h2 class="font-semibold text-gray-700 mb-3">Recent Transactions</h2>
+                <div id="txList" class="space-y-2 text-sm">
+                    <p class="text-gray-400 text-center py-4">Loading ledger history...</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Navigation Footer -->
+        <footer class="p-4 border-t bg-gray-50 flex justify-around text-center text-xs text-gray-500">
+            <div><span class="block text-emerald-600 font-bold text-lg">💰</span> Home</div>
+            <div><span class="block font-bold text-lg">🔄</span> Groups</div>
+            <div><span class="block font-bold text-lg">📜</span> Passbook</div>
+        </footer>
+    </div>
+
+    <script>
+        const TEST_USER_ID = 1;
+
+        async function fetchLedger() {
+            try {
+                const res = await fetch(`/api/ledger/${TEST_USER_ID}`);
+                const data = await res.json();
+                
+                document.getElementById('balance').innerText = data.total_savings.toFixed(2);
+                
+                const list = document.getElementById('txList');
+                if (data.transactions.length === 0) {
+                    list.innerHTML = `<p class="text-gray-400 text-center py-4">No deposits made yet.</p>`;
+                    return;
+                }
+                
+                list.innerHTML = data.transactions.map(t => `
+                    <div class="flex justify-between items-center bg-white p-3 border rounded-lg">
+                        <div>
+                            <p class="font-medium text-gray-800">${t.type.toUpperCase()}</p>
+                            <p class="text-xs text-gray-400">${t.date} • ${t.reference}</p>
+                        </div>
+                        <span class="font-bold ${t.type === 'deposit' ? 'text-emerald-600' : 'text-red-500'}">
+                            +GH₵ ${t.amount.toFixed(2)}
+                        </span>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Error loading ledger:", err);
+            }
+        }
+
+        async function makeDeposit() {
+            const amountInput = document.getElementById('depositAmount');
+            const amount = amountInput.value;
+            if (!amount || amount <= 0) return alert("Please enter a valid amount");
+
+            const res = await fetch('/api/deposit/initialize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: TEST_USER_ID, amount: amount })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(`Deposit of GH₵ ${amount} recorded!`);
+                amountInput.value = '';
+                fetchLedger();
+            } else {
+                alert(data.error || "Deposit failed");
+            }
+        }
+
+        // Initialize user automatically for demo testing
+        async function init() {
+            await fetch('/api/users/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ full_name: "Kwame Mensah", phone_number: "0240000000" })
+            });
+            fetchLedger();
+        }
+
+        init();
+    </script>
+</body>
+</html>
+
+
+
+
+
+
